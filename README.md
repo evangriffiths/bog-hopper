@@ -53,7 +53,7 @@ Caddy terminates TLS and gzips at **boghopper.evangriffiths.org**
 | S | Smidge® midge spray (collect 🧴 cans on the path) |
 | E | eat an oatcake 🥮 — speed, bog-proof feet, and it actively outruns the sweep |
 | Esc (or P) | pause, with quit-to-menu |
-| R | restart |
+| Space / Enter | restart from the game-over screen |
 
 ## How it plays
 

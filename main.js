@@ -1139,14 +1139,13 @@ window.addEventListener('keydown', (e) => {
   const k = e.code;
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(k)) e.preventDefault();
   if (S.mode === 'menu' && (k === 'Space' || k === 'Enter')) { startGame(); return; }
-  if (S.mode === 'over' && (k === 'KeyR' || k === 'Enter' || k === 'Space')) { startGame(); return; }
+  if (S.mode === 'over' && (k === 'Enter' || k === 'Space')) { startGame(); return; }
   switch (k) {
     case 'ArrowLeft': case 'KeyA': if (S.mode === 'playing') S.lane = Math.max(0, S.lane - 1); break;
     case 'ArrowRight': case 'KeyD': if (S.mode === 'playing') S.lane = Math.min(2, S.lane + 1); break;
     case 'ArrowUp': case 'KeyW': case 'Space': tryJump(); break;
     case 'KeyS': case 'ArrowDown': useSpray(); break;
     case 'KeyE': eatCake(); break;
-    case 'KeyR': if (S.mode === 'playing') startGame(); break;
     case 'Escape': case 'KeyP':
       if (S.mode === 'playing') pauseGame();
       else if (S.mode === 'paused') resumeGame();
