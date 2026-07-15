@@ -1144,8 +1144,8 @@ function flashInv(id) {
 window.addEventListener('keydown', (e) => {
   const k = e.code;
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(k)) e.preventDefault();
-  if (S.mode === 'menu' && (k === 'Space' || k === 'Enter')) { startGame(); return; }
-  if (S.mode === 'over' && (k === 'Enter' || k === 'Space')) { startGame(); return; }
+  if (S.mode === 'menu' && (k === 'Space' || k === 'Enter')) { e.preventDefault(); startGame(); return; }
+  if (S.mode === 'over' && (k === 'Enter' || k === 'Space')) { e.preventDefault(); startGame(); return; }
   switch (k) {
     case 'ArrowLeft': case 'KeyA': if (S.mode === 'playing') S.lane = Math.max(0, S.lane - 1); break;
     case 'ArrowRight': case 'KeyD': if (S.mode === 'playing') S.lane = Math.min(2, S.lane + 1); break;
@@ -1158,10 +1158,16 @@ window.addEventListener('keydown', (e) => {
       break;
   }
 });
-document.getElementById('startBtn').addEventListener('click', startGame);
-document.getElementById('againBtn').addEventListener('click', startGame);
-document.getElementById('resumeBtn').addEventListener('click', resumeGame);
-document.getElementById('quitBtn').addEventListener('click', quitToMenu);
+// Blur after every overlay-button click: a button that kept focus would be
+// invisibly re-activated by later Enter/Space presses (ghost restarts).
+const wireButton = (id, fn) => document.getElementById(id).addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  fn();
+});
+wireButton('startBtn', startGame);
+wireButton('againBtn', startGame);
+wireButton('resumeBtn', resumeGame);
+wireButton('quitBtn', quitToMenu);
 window.addEventListener('blur', () => {
   if (S.mode === 'playing') pauseGame();
 });
@@ -1205,6 +1211,7 @@ function startGame() {
   });
   startScreen.classList.add('hidden');
   overScreen.classList.add('hidden');
+  pauseScreen.classList.add('hidden'); // never leave a stuck PAUSED overlay
   hud.classList.add('on');
   updateHud(true);
   track('start');
