@@ -668,6 +668,12 @@ function createSegment(index) {
   ud.cairn.visible = false;
   group.add(ud.cairn);
 
+  // Instanced meshes are culled by their BASE geometry's bounding sphere — a
+  // tiny blob at the segment centre — so a whole segment's worth of moss,
+  // cotton grass, heather etc. would vanish the moment the segment centre
+  // left the frustum, even with instances still on screen. Exempt them all.
+  group.traverse(o => { if (o.isInstancedMesh) o.frustumCulled = false; });
+
   group.position.z = -index * SEG_LEN;
   scene.add(group);
   segments.push(group);
