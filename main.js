@@ -688,7 +688,9 @@ function difficulty(d) {
     rockChance: smoothstep(60, 700, d) * 0.8,
     sheepChance: d > 250 ? 0.16 : 0,
     canChance: 0.15,
-    cakeChance: 0.22,
+    // generous while you learn, scarce once the speed ramps — at a flat rate
+    // fast players collect cakes quicker than they can eat them
+    cakeChance: 0.2 - smoothstep(300, 1500, d) * 0.13,
   };
 }
 
@@ -1168,6 +1170,7 @@ wireButton('startBtn', startGame);
 wireButton('againBtn', startGame);
 wireButton('resumeBtn', resumeGame);
 wireButton('quitBtn', quitToMenu);
+wireButton('overQuitBtn', quitToMenu);
 window.addEventListener('blur', () => {
   if (S.mode === 'playing') pauseGame();
 });
