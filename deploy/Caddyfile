@@ -1,0 +1,4 @@
+boghopper.evangriffiths.org {
+    encode gzip
+    reverse_proxy localhost:3003
+}

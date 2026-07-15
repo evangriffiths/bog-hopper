@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BogHopper — usage</title>
+<style>
+  :root { color-scheme: light dark; }
+  .viz-root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-players: #2a78d6;   /* categorical slot 1: players */
+    --series-runs:    #008300;   /* categorical slot 2: runs    */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-players: #3987e5;
+      --series-runs:    #008300;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-players: #3987e5;
+    --series-runs:    #008300;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .viz-root {
+    min-height: 100vh; background: var(--page); color: var(--text-primary);
+    padding: 28px clamp(16px, 4vw, 48px) 64px;
+  }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  h1 { font-size: 20px; font-weight: 650; }
+  header .sub { font-size: 13px; color: var(--text-muted); }
+
+  /* filter row — one row, scopes everything below */
+  #filters { display: flex; gap: 8px; margin-bottom: 20px; }
+  #filters button {
+    font: inherit; font-size: 13px; color: var(--text-secondary);
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 14px; cursor: pointer;
+  }
+  #filters button:hover { color: var(--text-primary); }
+  #filters button[aria-pressed="true"] {
+    color: var(--text-primary); font-weight: 600;
+  }
+  #filters button[aria-pressed="true"]::before { content: "✓ "; font-weight: 700; }
+
+  .cards { display: grid; gap: 16px; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .charts { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-bottom: 16px; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .card h2 { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; }
+  .card .note { font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; }
+
+  /* stat tiles */
+  .tile .label { font-size: 12.5px; color: var(--text-secondary); }
+  .tile .value { font-size: 30px; font-weight: 600; margin-top: 4px; }
+  .tile .value small { font-size: 15px; font-weight: 500; color: var(--text-muted); margin-left: 2px; }
+
+  .chartWrap { position: relative; }
+  .chartWrap.loading { opacity: .55; transition: opacity .2s; }
+  svg { display: block; width: 100%; }
+  svg text { font-family: inherit; font-size: 11px; fill: var(--text-muted); }
+  .bar { transition: filter .1s; }
+  .hit { fill: transparent; cursor: pointer; outline-offset: -2px; }
+  .hit:focus-visible { outline: 2px solid var(--series-players); }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 11px; box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    font-size: 12px; color: var(--text-secondary); max-width: 240px;
+  }
+  #tooltip .val { font-size: 15px; font-weight: 650; color: var(--text-primary); }
+  #tooltip .key { display: inline-block; width: 10px; height: 3px; border-radius: 2px;
+    vertical-align: middle; margin-right: 6px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 600; color: var(--text-muted); font-size: 11.5px;
+       text-transform: uppercase; letter-spacing: .4px; padding: 6px 10px 6px 0; }
+  td { padding: 6px 10px 6px 0; border-top: 1px solid var(--grid);
+       color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  td:first-child { color: var(--text-primary); }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <header>
+    <h1>BogHopper — usage</h1>
+    <span class="sub" id="updated">loading…</span>
+  </header>
+
+  <div id="filters" role="group" aria-label="Date range">
+    <button data-days="7">Last 7 days</button>
+    <button data-days="30" aria-pressed="true">Last 30 days</button>
+    <button data-days="90">Last 90 days</button>
+  </div>
+
+  <div class="cards kpis">
+    <div class="card tile"><div class="label">Runs today</div><div class="value" id="kRunsToday">–</div></div>
+    <div class="card tile"><div class="label">Players today</div><div class="value" id="kPlayersToday">–</div></div>
+    <div class="card tile"><div class="label" id="kRunsRangeLabel">Runs</div><div class="value" id="kRunsRange">–</div></div>
+    <div class="card tile"><div class="label" id="kPlayersRangeLabel">Players</div><div class="value" id="kPlayersRange">–</div></div>
+    <div class="card tile"><div class="label" id="kBestLabel">Best distance</div><div class="value" id="kBest">–</div></div>
+  </div>
+
+  <div class="cards charts">
+    <div class="card">
+      <h2>Players per day</h2>
+      <div class="note">unique players (daily-rotating anonymous hash)</div>
+      <div class="chartWrap" id="chartPlayers"></div>
+    </div>
+    <div class="card">
+      <h2>Runs per day</h2>
+      <div class="note">games started</div>
+      <div class="chartWrap" id="chartRuns"></div>
+    </div>
+    <div class="card">
+      <h2>Finish distances</h2>
+      <div class="note">how far runs got before the sweep, 250&nbsp;m bins</div>
+      <div class="chartWrap" id="chartHist"></div>
+    </div>
+    <div class="card">
+      <h2>Recent runs</h2>
+      <div class="note">latest finishes</div>
+      <div id="recent"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Daily numbers</h2>
+    <div class="note">table view of the charts above</div>
+    <div id="dailyTable"></div>
+  </div>
+</div>
+<div id="tooltip" role="status"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const tooltip = $('tooltip');
+  let days = 30;
+
+  const css = (name) =>
+    getComputedStyle(document.querySelector('.viz-root')).getPropertyValue(name).trim();
+
+  const compact = (n) => {
+    if (n == null) return '–';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 10000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+  };
+
+  function niceMax(v) {
+    if (v <= 4) return Math.max(v, 4);
+    const pow = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 2, 4, 5, 10]) if (m * pow >= v) return m * pow;
+    return 10 * pow;
+  }
+
+  function showTip(evt, rows) {
+    tooltip.replaceChildren();
+    for (const r of rows) {
+      const line = document.createElement('div');
+      if (r.color) {
+        const key = document.createElement('span');
+        key.className = 'key';
+        key.style.background = r.color;
+        line.appendChild(key);
+      }
+      const val = document.createElement('span');
+      val.className = r.strong ? 'val' : '';
+      val.textContent = r.text;              // untrusted-safe insertion
+      line.appendChild(val);
+      tooltip.appendChild(line);
+    }
+    tooltip.style.display = 'block';
+    const pad = 14;
+    const w = tooltip.offsetWidth, h = tooltip.offsetHeight;
+    let x = evt.clientX + pad, y = evt.clientY - h - pad;
+    if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+    if (y < 8) y = evt.clientY + pad;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+  const hideTip = () => { tooltip.style.display = 'none'; };
+
+  // Column chart: single series, ≤24px bars, 4px rounded data-end, square baseline,
+  // hairline solid grid, per-mark hover/focus tooltip with full-height hit targets.
+  function barChart(el, data, { color, xLabel, tipLabel, focusColor }) {
+    const W = el.clientWidth || 460, H = 190;
+    const m = { top: 8, right: 6, bottom: 22, left: 34 };
+    const pw = W - m.left - m.right, ph = H - m.top - m.bottom;
+    const n = data.length;
+    const maxV = niceMax(Math.max(...data.map(d => d.v), 0));
+    const slot = pw / n;
+    const bw = Math.max(2, Math.min(24, slot - 2));
+    const y = (v) => m.top + ph * (1 - v / maxV);
+
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    // gridlines + y ticks (clean numbers; these carry the unlabeled values)
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = maxV * i / ticks;
+      const gy = y(v);
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', m.left); line.setAttribute('x2', W - m.right);
+      line.setAttribute('y1', gy); line.setAttribute('y2', gy);
+      line.setAttribute('stroke', i === 0 ? css('--baseline') : css('--grid'));
+      line.setAttribute('stroke-width', '1');
+      svg.appendChild(line);
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', m.left - 6); t.setAttribute('y', gy + 3.5);
+      t.setAttribute('text-anchor', 'end');
+      t.style.fontVariantNumeric = 'tabular-nums';
+      t.textContent = compact(Math.round(v));
+      svg.appendChild(t);
+    }
+
+    // x labels — thinned to ~6
+    const every = Math.max(1, Math.ceil(n / 6));
+    data.forEach((d, i) => {
+      if (i % every !== 0 && i !== n - 1) return;
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', m.left + slot * i + slot / 2);
+      t.setAttribute('y', H - 6);
+      t.setAttribute('text-anchor', 'middle');
+      t.textContent = xLabel(d);
+      svg.appendChild(t);
+    });
+
+    // bars: rounded top corners only, square at the baseline
+    data.forEach((d, i) => {
+      const x = m.left + slot * i + (slot - bw) / 2;
+      const top = y(d.v), h = m.top + ph - top;
+      if (d.v > 0) {
+        const r = Math.min(4, h, bw / 2);
+        const path = document.createElementNS(NS, 'path');
+        path.setAttribute('d',
+          `M${x},${top + h} L${x},${top + r} Q${x},${top} ${x + r},${top}` +
+          ` L${x + bw - r},${top} Q${x + bw},${top} ${x + bw},${top + r}` +
+          ` L${x + bw},${top + h} Z`);
+        path.setAttribute('fill', color);
+        path.setAttribute('class', 'bar');
+        path.dataset.i = i;
+        svg.appendChild(path);
+      }
+      // full-height hit target, keyboard focusable
+      const hit = document.createElementNS(NS, 'rect');
+      hit.setAttribute('x', m.left + slot * i);
+      hit.setAttribute('y', m.top);
+      hit.setAttribute('width', slot);
+      hit.setAttribute('height', ph);
+      hit.setAttribute('class', 'hit');
+      hit.setAttribute('tabindex', '0');
+      hit.setAttribute('role', 'img');
+      hit.setAttribute('aria-label', `${xLabel(d)}: ${d.v} ${tipLabel}`);
+      const rows = (e) => showTip(e, [
+        { text: `${d.v} ${tipLabel}`, strong: true, color },
+        { text: d.tip ?? xLabel(d) },
+      ]);
+      hit.addEventListener('pointermove', (e) => {
+        rows(e);
+        svg.querySelectorAll('.bar').forEach(b =>
+          b.style.filter = b.dataset.i == i ? 'brightness(1.15)' : '');
+      });
+      hit.addEventListener('pointerleave', () => {
+        hideTip();
+        svg.querySelectorAll('.bar').forEach(b => b.style.filter = '');
+      });
+      hit.addEventListener('focus', (e) => {
+        const box = hit.getBoundingClientRect();
+        rows({ clientX: box.left + box.width / 2, clientY: box.top + 20 });
+      });
+      hit.addEventListener('blur', hideTip);
+      svg.appendChild(hit);
+    });
+
+    el.replaceChildren(svg);
+  }
+
+  const fmtDay = (iso) => {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  };
+  const ago = (ts) => {
+    const s = Math.max(1, Math.floor(Date.now() / 1000 - ts));
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  };
+
+  let lastData = null;
+  function render(d) {
+    lastData = d;
+    $('updated').textContent =
+      `updated ${new Date().toLocaleTimeString()} · refreshes every 60 s`;
+    const k = d.kpi;
+    $('kRunsToday').textContent = compact(k.runsToday);
+    $('kPlayersToday').textContent = compact(k.playersToday);
+    $('kRunsRange').textContent = compact(k.runsRange);
+    $('kPlayersRange').textContent = compact(k.playersRange);
+    $('kRunsRangeLabel').textContent = `Runs, ${d.days} days`;
+    $('kPlayersRangeLabel').textContent = `Players, ${d.days} days`;
+    $('kBestLabel').textContent = `Best distance, ${d.days} days`;
+    $('kBest').replaceChildren();
+    $('kBest').append(k.bestRange == null ? '–' : String(k.bestRange));
+    if (k.bestRange != null) {
+      const sm = document.createElement('small');
+      sm.textContent = 'm';
+      $('kBest').appendChild(sm);
+    }
+
+    const anyData = d.daily.some(x => x.players || x.runs);
+    const playersEl = $('chartPlayers'), runsEl = $('chartRuns'), histEl = $('chartHist');
+    if (!anyData) {
+      const msg = '<div class="empty">No data yet — share the link and send some runners up the hill.</div>';
+      playersEl.innerHTML = msg; runsEl.innerHTML = msg;
+    } else {
+      barChart(playersEl,
+        d.daily.map(x => ({ v: x.players, day: x.day })),
+        { color: css('--series-players'), xLabel: (x) => fmtDay(x.day), tipLabel: 'players' });
+      barChart(runsEl,
+        d.daily.map(x => ({ v: x.runs, day: x.day })),
+        { color: css('--series-runs'), xLabel: (x) => fmtDay(x.day), tipLabel: 'runs' });
+    }
+
+    if (d.recent.length === 0) {
+      histEl.innerHTML = '<div class="empty">No finished runs yet.</div>';
+    } else {
+      barChart(histEl,
+        d.hist.map((v, i) => ({
+          v,
+          bin: i,
+          tip: i === 11 ? '2750 m and beyond' : `${i * 250}–${i * 250 + 249} m`,
+        })),
+        {
+          color: css('--series-runs'),
+          xLabel: (x) => x.bin % 2 === 0 ? `${x.bin * 250}` : '',
+          tipLabel: 'runs',
+        });
+    }
+
+    // recent runs table
+    const rec = document.createElement('table');
+    rec.innerHTML = '<thead><tr><th>When</th><th>Distance</th></tr></thead>';
+    const rb = document.createElement('tbody');
+    for (const r of d.recent) {
+      const tr = document.createElement('tr');
+      const t1 = document.createElement('td'); t1.textContent = ago(r.ts);
+      const t2 = document.createElement('td'); t2.textContent = `${r.dist} m`;
+      tr.append(t1, t2); rb.appendChild(tr);
+    }
+    rec.appendChild(rb);
+    $('recent').replaceChildren(d.recent.length ? rec :
+      Object.assign(document.createElement('div'),
+        { className: 'empty', textContent: 'Nothing yet.' }));
+
+    // daily table — the charts' table-view twin
+    const tbl = document.createElement('table');
+    tbl.innerHTML = '<thead><tr><th>Day</th><th>Players</th><th>Runs</th><th>Best</th></tr></thead>';
+    const tb = document.createElement('tbody');
+    for (const row of [...d.daily].reverse()) {
+      if (!row.players && !row.runs) continue;
+      const tr = document.createElement('tr');
+      for (const v of [fmtDay(row.day), row.players, row.runs,
+                       row.best == null ? '–' : row.best + ' m']) {
+        const td = document.createElement('td');
+        td.textContent = String(v);
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    }
+    tbl.appendChild(tb);
+    $('dailyTable').replaceChildren(tb.children.length ? tbl :
+      Object.assign(document.createElement('div'),
+        { className: 'empty', textContent: 'Nothing yet.' }));
+  }
+
+  async function load() {
+    // refetch keeps the frame: hold previous render at reduced opacity
+    document.querySelectorAll('.chartWrap').forEach(el => el.classList.add('loading'));
+    try {
+      const res = await fetch(`api/stats?days=${days}`, { cache: 'no-store' });
+      render(await res.json());
+    } catch {
+      $('updated').textContent = 'could not reach the server';
+    }
+    document.querySelectorAll('.chartWrap').forEach(el => el.classList.remove('loading'));
+  }
+
+  $('filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-days]');
+    if (!btn) return;
+    days = Number(btn.dataset.days);
+    document.querySelectorAll('#filters button').forEach(b =>
+      b.setAttribute('aria-pressed', String(b === btn)));
+    load();
+  });
+
+  let resizeT;
+  addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => lastData && render(lastData), 150);
+  });
+  load();
+  setInterval(load, 60_000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BogHopper</title>
+<style>
+  :root {
+    --panel: rgba(18, 24, 20, 0.72);
+    --ink: #f2ede2;
+    --accent: #e8a33d;
+    --danger: #b3402e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #10141a; }
+  body { font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+  canvas { display: block; }
+
+  #wrap { position: fixed; inset: 0; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s; }
+  #hud.on { opacity: 1; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+    padding: 8px 14px;
+  }
+  #dist {
+    position: absolute; top: 16px; left: 16px;
+    font-size: 30px; font-weight: 700; letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+  #dist small { font-size: 14px; font-weight: 500; opacity: .7; margin-left: 2px; }
+  #best {
+    position: absolute; top: 16px; right: 16px;
+    font-size: 14px; opacity: .95;
+    font-variant-numeric: tabular-nums;
+  }
+  #inv {
+    position: absolute; bottom: 18px; left: 16px;
+    display: flex; gap: 10px; font-size: 17px;
+  }
+  #keys {
+    position: absolute; bottom: 18px; right: 16px;
+    font-size: 11.5px; opacity: .8; letter-spacing: .3px;
+  }
+  #keys b { color: var(--accent); font-weight: 600; }
+  .invItem { display: flex; align-items: center; gap: 7px; }
+  .invItem .key {
+    font-size: 11px; opacity: .75; border: 1px solid rgba(255,255,255,.35);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .invItem.flash { animation: flash .35s; }
+  @keyframes flash { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+  /* sweep meter */
+  #sweepWrap {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 300px; text-align: center;
+  }
+  #sweepLabel { font-size: 10px; letter-spacing: 3px; opacity: .8; margin-bottom: 4px; }
+  #sweepBar {
+    height: 8px; border-radius: 4px; overflow: hidden;
+    background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.15);
+  }
+  #sweepFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #6e8f5a, #e8a33d 55%, #b3402e);
+    transition: width .12s linear;
+  }
+
+  /* status message */
+  #msg {
+    position: absolute; top: 21%; left: 50%; transform: translateX(-50%);
+    font-size: 21px; font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.6);
+    opacity: 0; transition: opacity .25s; text-align: center; white-space: nowrap;
+  }
+  #msg.on { opacity: 1; }
+  #msg .sub { display: block; font-size: 13px; font-weight: 400; opacity: .85; margin-top: 3px; }
+
+  /* rising mist at the base of the screen (the sweep) */
+  #mist {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 45%;
+    background: linear-gradient(to top, rgba(196, 205, 200, 0.95), rgba(196,205,200,0));
+    opacity: 0; pointer-events: none;
+  }
+  #vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(20,15,10,0.55) 100%);
+  }
+
+  /* ---------- Overlays ---------- */
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(15,22,18,0.55), rgba(8,12,10,0.88));
+    transition: opacity .5s; text-align: center; padding: 20px;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  h1 {
+    font-size: 62px; letter-spacing: 4px; font-weight: 800;
+    color: var(--ink);
+    text-shadow: 0 3px 0 #3c2f1e, 0 8px 24px rgba(0,0,0,.7);
+  }
+  h1 span { color: var(--accent); }
+  .tagline { font-size: 15px; opacity: .85; max-width: 480px; line-height: 1.5; margin-top: -6px; }
+  .controls {
+    display: grid; grid-template-columns: auto auto; gap: 6px 16px;
+    font-size: 13.5px; text-align: left; margin: 10px 0;
+    background: var(--panel); padding: 14px 22px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .controls b { color: var(--accent); font-weight: 600; }
+  button {
+    pointer-events: auto; cursor: pointer;
+    font: inherit; font-size: 17px; font-weight: 700; letter-spacing: 1px;
+    color: #1c1509; background: var(--accent);
+    border: none; border-radius: 10px; padding: 13px 42px;
+    box-shadow: 0 4px 0 #9a6a1e, 0 8px 20px rgba(0,0,0,.5);
+    transition: transform .08s;
+  }
+  button:hover { transform: translateY(-2px); }
+  button:active { transform: translateY(1px); box-shadow: 0 2px 0 #9a6a1e; }
+  button.secondary {
+    background: rgba(255,255,255,.12); color: var(--ink);
+    box-shadow: 0 4px 0 rgba(0,0,0,.4);
+    font-size: 14px; padding: 10px 30px;
+  }
+  button.secondary:active { box-shadow: 0 2px 0 rgba(0,0,0,.4); }
+  #overScreen h1 { font-size: 42px; }
+  #overStats { font-size: 18px; line-height: 1.7; }
+  #overStats b { color: var(--accent); font-size: 26px; }
+  .newBest { color: var(--accent); font-weight: 700; animation: flash .5s; }
+  .hint { font-size: 12px; opacity: .6; }
+</style>
+</head>
+<body>
+<div id="wrap"></div>
+
+<div id="hud">
+  <div id="dist" class="panel">0<small>m</small></div>
+  <div id="best" class="panel">BEST 0 m</div>
+  <div id="inv">
+    <div class="invItem panel" id="invSpray">🧴 <span id="sprayN">0</span> <span class="key">S</span></div>
+    <div class="invItem panel" id="invCake">🥮 <span id="cakeN">0</span> <span class="key">E</span></div>
+  </div>
+  <div id="sweepWrap">
+    <div id="sweepLabel">THE SWEEP</div>
+    <div id="sweepBar"><div id="sweepFill"></div></div>
+  </div>
+  <div id="keys" class="panel"><b>A/D</b> steer &middot; <b>W</b> jump &middot; <b>S</b> Smidge &middot; <b>E</b> oatcake &middot; <b>Esc</b> pause</div>
+  <div id="msg"></div>
+</div>
+
+<div id="mist"></div>
+<div id="vignette"></div>
+
+<div id="startScreen" class="overlay">
+  <h1>BOG<span>HOPPER</span></h1>
+  <div class="tagline">A race along a Highland track. Lace up your inov-8s, dodge the peat hags,
+    hop the bogs, Smidge the midges and keep ahead of the mist &mdash; or get swept off the hill.</div>
+  <div class="controls">
+    <span><b>&larr; / &rarr;</b> (or A / D)</span><span>switch track</span>
+    <span><b>Space / &uarr;</b> (or W)</span><span>jump &mdash; hop free once your feet unstick</span>
+    <span><b>S</b></span><span>Smidge&reg; midge spray (collect 🧴 cans)</span>
+    <span><b>E</b></span><span>eat an oatcake 🥮 &mdash; speed, bog-proof feet, outrun the sweep</span>
+  </div>
+  <button id="startBtn">TAKE TO THE HILL</button>
+  <div class="hint">Esc pauses &middot; R restarts</div>
+</div>
+
+<div id="pauseScreen" class="overlay hidden">
+  <h1 style="font-size:42px">PAUSED</h1>
+  <button id="resumeBtn">CARRY ON</button>
+  <button id="quitBtn" class="secondary">QUIT TO MENU</button>
+  <div class="hint">Esc resumes</div>
+</div>
+
+<div id="overScreen" class="overlay hidden">
+  <h1>SWEPT AWAY</h1>
+  <div id="overCause" class="tagline">The mist rolled in and took you.</div>
+  <div id="overStats" class="panel"></div>
+  <button id="againBtn">ANOTHER GO</button>
+  <div class="hint">or press R</div>
+</div>
+
+<script type="importmap">
+  { "imports": { "three": "./lib/three.module.js" } }
+</script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

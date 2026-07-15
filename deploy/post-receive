@@ -1,0 +1,22 @@
+#!/bin/bash
+set -e
+
+APP_DIR=/opt/bog-hopper
+GIT_DIR=/opt/bog-hopper.git
+
+echo "==> Deploying bog-hopper..."
+
+export GIT_WORK_TREE=$APP_DIR
+export GIT_DIR=$GIT_DIR
+git checkout -f main
+git reset --hard HEAD
+
+cd $APP_DIR
+
+# boghopper.db is untracked, so player stats survive deploys
+
+cp deploy/bog-hopper.service /etc/systemd/system/bog-hopper.service
+systemctl daemon-reload
+
+systemctl restart bog-hopper
+echo "==> Deploy complete!"

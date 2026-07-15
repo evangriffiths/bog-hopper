@@ -1,0 +1,33 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Join the tailnet so we can SSH to the VPS on its private interface.
+      # Public port 22 is blocked by ufw; only tailscale0 traffic is allowed.
+      # Auth key is ephemeral + reusable; rotate every 90 days at
+      # https://login.tailscale.com/admin/settings/keys
+      - name: Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: gh-actions-${{ github.run_id }}
+
+      - name: Deploy to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H evan-vps >> ~/.ssh/known_hosts
+
+          git remote add deploy root@evan-vps:/opt/bog-hopper.git
+          git push deploy main --force
