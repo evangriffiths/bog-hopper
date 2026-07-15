@@ -59,9 +59,9 @@ Caddy terminates TLS and gzips at **boghopper.evangriffiths.org**
 
 - You run at a fixed, slowly ramping speed. Landing in a **peat bog** grabs your
   feet (an instant toll plus a beat where you can't jump), then slows you to a
-  squelch; anything that slows you lets **the sweep** (the mist at the base of
-  the screen) gain on you. Lost ground recovers slowly — an oatcake is the only
-  fast way back. Reach the bottom and you're out.
+  squelch; anything that slows you builds **bog fatigue** (the meter at the foot
+  of the screen) and lets the mist gain on you. Fatigue recovers slowly — an
+  oatcake is the only fast way back. Max it out and you're swept off the hill.
 - The path gets **boggier with distance**; big bogs sometimes have a plank
   line across one lane.
 - **Midge swarms** attack periodically — spray them or suffer.
