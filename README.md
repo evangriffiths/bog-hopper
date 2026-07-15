@@ -79,3 +79,5 @@ Caddy terminates TLS and gzips at **boghopper.evangriffiths.org**
   ~170 draw calls / ~50 k triangles — comfortably 60 fps on integrated graphics.
 - Debug hooks: `window.__bog` (state), `window.__bogStep(dt, n)` (headless
   stepping), `window.__bogGL()` (renderer stats).
+
+Play it live at **https://boghopper.evangriffiths.org**
