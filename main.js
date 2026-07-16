@@ -1434,7 +1434,7 @@ function update(dt) {
   }
   if (S.pz >= CAUGHT_Z) {
     gameOver(S.bogged
-      ? 'Bogged down, soaked through and swallowed by the mist.'
+      ? 'Swallowed by the bog and eaten alive by midges'
       : 'Too slow — the mist rolled in and took you.');
     return;
   }
