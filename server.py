@@ -52,6 +52,8 @@ def init_db():
         name TEXT NOT NULL,
         dist INTEGER NOT NULL)''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_scores_dist ON scores(dist DESC)')
+    c.execute('''CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_name
+                 ON scores(name COLLATE NOCASE)''')
     c.execute('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)')
     if not c.execute("SELECT v FROM meta WHERE k='salt'").fetchone():
         c.execute("INSERT INTO meta VALUES ('salt', ?)", (secrets.token_hex(16),))
@@ -195,11 +197,23 @@ class Handler(SimpleHTTPRequestHandler):
                 if not name:
                     raise ValueError('empty name')
                 dist = max(0, min(int(data.get('dist')), 1_000_000))
-                cur = db().execute(
+                # one entry per name: keep only the highest score
+                c = db()
+                row = c.execute(
+                    'SELECT id, dist FROM scores WHERE name = ? COLLATE NOCASE',
+                    (name,)).fetchone()
+                if row and row[1] >= dist:
+                    return self.send_json({'ok': True, 'id': row[0], 'improved': False})
+                if row:
+                    c.execute('UPDATE scores SET dist = ?, ts = ?, name = ? WHERE id = ?',
+                              (dist, int(time.time()), name, row[0]))
+                    c.commit()
+                    return self.send_json({'ok': True, 'id': row[0], 'improved': True})
+                cur = c.execute(
                     'INSERT INTO scores (ts, name, dist) VALUES (?, ?, ?)',
                     (int(time.time()), name, dist))
-                db().commit()
-                return self.send_json({'ok': True, 'id': cur.lastrowid})
+                c.commit()
+                return self.send_json({'ok': True, 'id': cur.lastrowid, 'improved': True})
             except Exception:
                 return self.send_error(400)
         if path != '/api/event':
