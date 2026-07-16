@@ -52,6 +52,13 @@ def init_db():
         name TEXT NOT NULL,
         dist INTEGER NOT NULL)''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_scores_dist ON scores(dist DESC)')
+    # migrate any pre-uniqueness duplicates: keep each name's best run
+    # (must happen before the unique index, or its creation fails on old data)
+    c.execute('''DELETE FROM scores WHERE EXISTS (
+        SELECT 1 FROM scores s2
+        WHERE s2.name = scores.name COLLATE NOCASE
+          AND (s2.dist > scores.dist
+               OR (s2.dist = scores.dist AND s2.id < scores.id)))''')
     c.execute('''CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_name
                  ON scores(name COLLATE NOCASE)''')
     c.execute('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)')
