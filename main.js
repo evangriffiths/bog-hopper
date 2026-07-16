@@ -1144,6 +1144,8 @@ function flashInv(id) {
 }
 
 window.addEventListener('keydown', (e) => {
+  // typing a leaderboard name must never drive the game (Space/Enter restart!)
+  if (e.target && e.target.tagName === 'INPUT') return;
   const k = e.code;
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(k)) e.preventDefault();
   if (S.mode === 'menu' && (k === 'Space' || k === 'Enter')) { e.preventDefault(); startGame(); return; }
@@ -1171,6 +1173,33 @@ wireButton('againBtn', startGame);
 wireButton('resumeBtn', resumeGame);
 wireButton('quitBtn', quitToMenu);
 wireButton('overQuitBtn', quitToMenu);
+
+// ---------- leaderboard submission ----------
+let lastRunDist = 0;
+const nameInput = document.getElementById('nameInput');
+const submitScoreBtn = document.getElementById('submitScoreBtn');
+nameInput.value = localStorage.getItem('boghopper_name') || '';
+nameInput.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter') submitScoreBtn.click();
+});
+submitScoreBtn.addEventListener('click', async () => {
+  const name = nameInput.value.trim().slice(0, 24);
+  if (!name) { nameInput.focus(); return; }
+  localStorage.setItem('boghopper_name', name);
+  submitScoreBtn.disabled = true;
+  submitScoreBtn.textContent = 'SUBMITTING…';
+  try {
+    const res = await fetch('api/score', {
+      method: 'POST',
+      body: JSON.stringify({ name, dist: lastRunDist }),
+    });
+    const j = await res.json();
+    location.href = 'leaderboard?me=' + j.id;
+  } catch {
+    submitScoreBtn.disabled = false;
+    submitScoreBtn.textContent = 'SUBMIT';
+  }
+});
 window.addEventListener('blur', () => {
   if (S.mode === 'playing') pauseGame();
 });
@@ -1224,6 +1253,9 @@ function gameOver(cause) {
   S.mode = 'over';
   S.overCause = cause;
   const m = Math.floor(S.dist);
+  lastRunDist = m;
+  submitScoreBtn.disabled = false;
+  submitScoreBtn.textContent = 'SUBMIT';
   const isBest = m > S.best;
   if (isBest) {
     S.best = m;

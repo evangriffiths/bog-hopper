@@ -140,6 +140,16 @@
   }
   button.secondary:active { box-shadow: 0 2px 0 rgba(0,0,0,.4); }
   #overScreen h1 { font-size: 42px; }
+  #scoreSubmit .scoreLabel { font-size: 12.5px; opacity: .8; margin-bottom: 8px; }
+  .scoreRow { display: flex; gap: 8px; justify-content: center; }
+  #nameInput {
+    font: inherit; font-size: 15px; color: var(--ink);
+    background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.25);
+    border-radius: 10px; padding: 10px 14px; width: 200px; outline: none;
+  }
+  #nameInput:focus { border-color: var(--accent); }
+  #nameInput::placeholder { color: rgba(242,237,226,.4); }
+  button:disabled { opacity: .55; cursor: default; transform: none; }
   #overStats { font-size: 18px; line-height: 1.7; }
   #overStats b { color: var(--accent); font-size: 26px; }
   .newBest { color: var(--accent); font-weight: 700; animation: flash .5s; }
@@ -192,6 +202,13 @@
   <h1>GAME OVER</h1>
   <div id="overCause" class="tagline">The mist rolled in and took you.</div>
   <div id="overStats" class="panel"></div>
+  <div id="scoreSubmit">
+    <div class="scoreLabel">Add your name to be added to the leaderboard</div>
+    <div class="scoreRow">
+      <input id="nameInput" maxlength="24" placeholder="Your name" autocomplete="off" spellcheck="false">
+      <button id="submitScoreBtn" class="secondary">SUBMIT</button>
+    </div>
+  </div>
   <button id="againBtn">ANOTHER GO</button>
   <button id="overQuitBtn" class="secondary">QUIT TO MENU</button>
   <div class="hint">or press Space for another go</div>

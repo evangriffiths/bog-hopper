@@ -46,6 +46,12 @@ def init_db():
         dist INTEGER,
         visitor TEXT)''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)')
+    c.execute('''CREATE TABLE IF NOT EXISTS scores (
+        id INTEGER PRIMARY KEY,
+        ts INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        dist INTEGER NOT NULL)''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_scores_dist ON scores(dist DESC)')
     c.execute('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)')
     if not c.execute("SELECT v FROM meta WHERE k='salt'").fetchone():
         c.execute("INSERT INTO meta VALUES ('salt', ?)", (secrets.token_hex(16),))
@@ -124,6 +130,29 @@ def stats(query):
     }
 
 
+def leaderboard(query):
+    c = db()
+    top = [{'rank': i + 1, 'id': r[0], 'name': r[1], 'dist': r[2]}
+           for i, r in enumerate(c.execute(
+               'SELECT id, name, dist FROM scores ORDER BY dist DESC, id ASC LIMIT 10'
+           ).fetchall())]
+    me = None
+    try:
+        me_id = int(query.get('me', [''])[0])
+    except (ValueError, IndexError):
+        me_id = None
+    if me_id is not None and not any(r['id'] == me_id for r in top):
+        row = c.execute('SELECT id, name, dist FROM scores WHERE id = ?',
+                        (me_id,)).fetchone()
+        if row:
+            # earlier submission wins ties
+            rank = c.execute(
+                'SELECT COUNT(*) FROM scores WHERE dist > ? OR (dist = ? AND id < ?)',
+                (row[2], row[2], row[0])).fetchone()[0] + 1
+            me = {'rank': rank, 'id': row[0], 'name': row[1], 'dist': row[2]}
+    return {'top': top, 'me': me}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=ROOT, **kwargs)
@@ -145,14 +174,35 @@ class Handler(SimpleHTTPRequestHandler):
         if path == '/dashboard':
             self.path = '/dashboard.html'
             return super().do_GET()
+        if path == '/leaderboard':
+            self.path = '/leaderboard.html'
+            return super().do_GET()
         if path == '/api/stats':
             return self.send_json(stats(parse_qs(urlparse(self.path).query)))
+        if path == '/api/leaderboard':
+            return self.send_json(leaderboard(parse_qs(urlparse(self.path).query)))
         if path == '/boghopper.db' or path.startswith('/boghopper.db-'):
             return self.send_error(404)  # never serve the database
         return super().do_GET()
 
     def do_POST(self):
-        if urlparse(self.path).path != '/api/event':
+        path = urlparse(self.path).path
+        if path == '/api/score':
+            try:
+                length = min(int(self.headers.get('Content-Length', 0)), 4096)
+                data = json.loads(self.rfile.read(length) or b'{}')
+                name = str(data.get('name', '')).strip()[:24]
+                if not name:
+                    raise ValueError('empty name')
+                dist = max(0, min(int(data.get('dist')), 1_000_000))
+                cur = db().execute(
+                    'INSERT INTO scores (ts, name, dist) VALUES (?, ?, ?)',
+                    (int(time.time()), name, dist))
+                db().commit()
+                return self.send_json({'ok': True, 'id': cur.lastrowid})
+            except Exception:
+                return self.send_error(400)
+        if path != '/api/event':
             return self.send_error(404)
         try:
             length = min(int(self.headers.get('Content-Length', 0)), 4096)
